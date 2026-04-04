@@ -1,0 +1,53 @@
+diff --git a/src/auth/login.ts b/src/auth/login.ts
+index 3a2f1b4..7c8e902 100644
+--- a/src/auth/login.ts
++++ b/src/auth/login.ts
+@@ -1,20 +1,47 @@
+-import { db } from '../db'
++import { db } from '../db'
++import { Request, Response, NextFunction } from 'express'
+
+-export async function login(username: string, password: string) {
+-  const user = await db.query(
+-    'SELECT id, username, role FROM users WHERE username = $1 AND password = $2',
+-    [username, password]
+-  )
+-  return user.rows[0] ?? null
++interface UserInfo {
++  id: number
++  username: string
++  role: string
++}
++
++export async function login(req: Request): Promise<UserInfo | null> {
++  const { username, password } = req.body
++
++  const hashedPassword = hashPassword(password)
++
++  const result = await db.query(
++    'SELECT id, username, role FROM users WHERE username = $1 AND password_hash = $2',
++    [username, hashedPassword]
++  )
++
++  return result.rows[0] ?? null
++}
++
++function hashPassword(password: string): string {
++  // TODO: replace with bcrypt
++  return Buffer.from(password).toString('base64')
++}
++
++export function requireRole(role: string) {
++  return async (req: Request, res: Response, next: NextFunction) => {
++    const userInfo = await login(req)
++    if (!userInfo) {
++      res.status(401).json({ error: 'unauthorized' })
++      return
++    }
++    if (userInfo.role !== role) {
++      res.status(403).json({ error: 'forbidden' })
++      return
++    }
++    next()
++  }
+ }
