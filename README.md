@@ -1,12 +1,19 @@
 # google-code-review
 
-A [Claude Code](https://claude.ai/code) skill that performs code reviews following **Google's Engineering Practices** guidelines.
+Two [Claude Code](https://claude.ai/code) skills for code review following **Google's Engineering Practices** guidelines.
+
+| Skill | What it does |
+|-------|-------------|
+| `/google-code-review` | Reviews your code and produces structured feedback with severity labels |
+| `/google-code-review-autofix` | Reviews your code, automatically fixes all blocking issues, and re-reviews — repeating until approved (up to 5 iterations) |
 
 ## What it does
 
-When invoked, this skill transforms Claude into a code reviewer that evaluates your code across eight dimensions — design, functionality, complexity, tests, naming, comments, style, and documentation — using the same standards documented in [Google's Engineering Practices](https://google.github.io/eng-practices/review/reviewer/).
+**`/google-code-review`** transforms Claude into a code reviewer that evaluates your code across eight dimensions — design, functionality, complexity, tests, naming, comments, style, and documentation — using the same standards documented in [Google's Engineering Practices](https://google.github.io/eng-practices/review/reviewer/).
 
 Output is structured with clear severity labels so you know what must be fixed versus what's optional.
+
+**`/google-code-review-autofix`** goes one step further: after identifying blocking issues, it edits your files directly to fix them, then re-reviews the result. It loops until there are no blocking issues remaining or the 5-iteration limit is reached.
 
 ## Installation
 
@@ -30,27 +37,31 @@ cd google-code-review-skill
 mkdir -p ~/.claude/skills
 ```
 
-**3. Copy the skill folder**
+**3. Copy the skill folder(s)**
 
 ```bash
 cp -r google-code-review ~/.claude/skills/
+cp -r google-code-review-autofix ~/.claude/skills/
 ```
 
 Or symlink to automatically get updates when you pull:
 
 ```bash
 ln -s "$(pwd)/google-code-review" ~/.claude/skills/google-code-review
+ln -s "$(pwd)/google-code-review-autofix" ~/.claude/skills/google-code-review-autofix
 ```
 
 **4. Verify installation**
 
-Open a new Claude Code session and type `/` — you should see `google-code-review` listed among the available skills.
+Open a new Claude Code session and type `/` — you should see both `google-code-review` and `google-code-review-autofix` listed among the available skills.
 
 > **Note:** Skills directory location is `~/.claude/skills/` on macOS and Linux. On Windows, use `%USERPROFILE%\.claude\skills\`.
 
 ## Usage
 
-In any Claude Code session, invoke the skill with `/google-code-review` followed by your code or diff:
+### `/google-code-review`
+
+Invoke with your code or diff:
 
 ```
 /google-code-review
@@ -58,30 +69,29 @@ In any Claude Code session, invoke the skill with `/google-code-review` followed
 [paste your code or diff here]
 ```
 
+### `/google-code-review-autofix`
+
+Invoke with a file path (so Claude can edit the files directly) and a CL description:
+
+```
+/google-code-review-autofix
+
+File: src/auth/login.ts
+CL description: Replace plaintext password comparison with hashed lookup.
+```
+
+Claude will review, fix blocking issues in-place, and re-review until the code is approved.
+
 ### Example output
 
-See [`examples/`](examples/) for a sample TypeScript diff and its full review output.
+See [`examples/`](examples/) for sample input and output:
 
-
-```
-## Summary
-Overall the change is solid. One blocking issue around error handling,
-plus a few nits on naming. Recommend approving after the blocking issue is resolved.
-
-## Blocking Issues
-- `auth/login.go:42` — Error from `db.Query()` is silently ignored. If the query
-  fails, the function returns a zero-value user and no error, which will cause a
-  silent authentication bypass. Handle or propagate this error explicitly.
-
-## Nits & Suggestions
-- Nit: `userInfo` → `user` would be clearer and consistent with the rest of the package
-- Consider: The retry loop on line 67 could be extracted into a helper — same
-  pattern appears in `auth/refresh.go`
-
-## Positives
-- Good test coverage on the happy path, including the edge case for expired tokens
-- CL description clearly explains the motivation and tradeoffs
-```
+| File | Description |
+|------|-------------|
+| [`user-auth.diff`](examples/user-auth.diff) | Input diff with two blocking security issues |
+| [`user-auth.review.md`](examples/user-auth.review.md) | Output from `/google-code-review` |
+| [`user-auth.autofix.md`](examples/user-auth.autofix.md) | Output from `/google-code-review-autofix` — 2 iterations to approval |
+| [`src/auth/login.ts`](examples/src/auth/login.ts) | Fixed file after auto-fix run |
 
 ## What the skill covers
 
